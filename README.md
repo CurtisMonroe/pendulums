@@ -24,6 +24,10 @@ RESTART on the same channel. Once all 5 instances have received all 5 distinct R
 restart moving, jumping back to their original position.
 Document briefly the resulting REST interface.
 
+## To Run
+From the `server` directory run `npm run dev` to start the 5 instances of the pendulum backend servers.
+
+
 ## Plan
 
 ### Day 1
@@ -31,6 +35,10 @@ Document briefly the resulting REST interface.
  https://www.youtube.com/watch?v=w3vs4a03y3I&ab_channel=ArpanNeupane
  npx create-react-app my-app --template typescript
  https://create-react-app.dev/docs/adding-typescript/  
+ https://blog.logrocket.com/how-to-set-up-node-typescript-express/
+ https://stackoverflow.com/questions/4351521/how-do-i-pass-command-line-arguments-to-a-node-js-program-and-receive-them 
+ https://www.npmjs.com/package/ts-command-line-args 
+
 2. Get editor working in client..
 3. Create initial setup
    - 5 pendulums always (backend ports will be 5001-5005)

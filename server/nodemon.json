@@ -1,0 +1,5 @@
+{
+    "watch": ["src"],
+    "ext": "ts",
+    "exec": "concurrently \"npx tsc --watch\" \"ts-node src/index.ts --instance=1 --port=5001\" \"ts-node src/index.ts --instance=2 --port=5002\""
+  }
