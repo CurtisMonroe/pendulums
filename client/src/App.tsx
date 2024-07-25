@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import logo from './logo.svg';
 import './App.css';
 import Pendulum from './pendulum';
@@ -8,6 +8,7 @@ function App() {
     const width = 1000;
     const height = width;
     const spacing = width / (pedulumCount + 1);
+
     return (
         <div className="App">
             <header className="App-header">
