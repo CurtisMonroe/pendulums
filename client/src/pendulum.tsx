@@ -2,11 +2,13 @@ import { useRef, Component, useEffect, useState, PointerEvent } from 'react';
 import { AppState, Mode } from './Simulation';
 
 interface DragElement {
-    x: number;
-    y: number;
+    xInitial: number;
+    yInitial: number;
     radius: number;
     xOffset: number;
     yOffset: number;
+    xSimulated: number;
+    ySimulated: number;
     isRepositioning: boolean;
     isResizing: boolean;
 }
@@ -26,11 +28,13 @@ const Pendulum = (props: PendulumProps) => {
 
     const [element, setElement] = useState<DragElement>(
         {
-            x: cx,
-            y: cy,
+            xInitial: cx,
+            yInitial: cy,
             radius: r,
             xOffset: 0,
             yOffset: 0,
+            xSimulated: cx,
+            ySimulated: cy,
             isRepositioning: false,
             isResizing: false,
         });
@@ -45,7 +49,12 @@ const Pendulum = (props: PendulumProps) => {
         const y = e.clientY - bbox.top;
         el.setPointerCapture(e.pointerId);
 
-        setElement({ ...element, xOffset: x, yOffset: y, isRepositioning: true });
+        setElement({ 
+            ...element, 
+            xOffset: x, 
+            yOffset: y,
+            isRepositioning: true 
+        });
     }
 
     function handleMovePendulumPointerMove(e: React.PointerEvent<SVGElement>) {
@@ -57,10 +66,15 @@ const Pendulum = (props: PendulumProps) => {
         const x = e.clientX - bbox.left;
         const y = e.clientY - bbox.top;
 
+        const xInit = element.xInitial - (element.xOffset - x);
+        const yInit = element.yInitial - (element.yOffset - y);
+
         setElement({
             ...element,
-            x: element.x - (element.xOffset - x),
-            y: element.y - (element.yOffset - y),
+            xInitial: xInit,
+            yInitial: yInit,
+            xSimulated: xInit,
+            ySimulated: yInit, 
         });
     }
 
@@ -72,7 +86,7 @@ const Pendulum = (props: PendulumProps) => {
         if (simulationState.mode !== Mode.stopped) {
             return;
         }
-        
+
         const el = e.currentTarget;
         const bbox = e.currentTarget.getBoundingClientRect();
         const x = e.clientX - bbox.left;
@@ -101,12 +115,15 @@ const Pendulum = (props: PendulumProps) => {
     //     setObjArr([{name: 'A', age: 1}]);
     //   }, []);
 
+    const x = simulationState.mode === Mode.stopped ? element.xInitial : element.xSimulated;
+    const y = simulationState.mode === Mode.stopped ? element.yInitial : element.ySimulated;
+
     return (
         <>
-            <line x1={anchor} y1={1} x2={element.x} y2={element.y} style={{ stroke: color, strokeWidth: 4 }} />
+            <line x1={anchor} y1={1} x2={x} y2={y} style={{ stroke: color, strokeWidth: 4 }} />
             <circle id={`pendulum-${index}`}
-                cx={element.x}
-                cy={element.y}
+                cx={x}
+                cy={y}
                 r={element.radius}
                 fill={element.isResizing ? 'black' : color}
                 stroke={simulationState.mode !== Mode.stopped ? color : 'white'}
@@ -115,8 +132,8 @@ const Pendulum = (props: PendulumProps) => {
                 onPointerUp={(evt) => handlePointerUp(evt)}
             />
             <circle id={`pendulum-core-${index}`}
-                cx={element.x}
-                cy={element.y}
+                cx={x}
+                cy={y}
                 r={element.radius-10}
                 fill={color}
                 onPointerDown={(evt) => handleMovePendulumPointerDown(evt)}
