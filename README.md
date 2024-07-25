@@ -45,7 +45,6 @@ From the `server` directory run `npm run dev` to start the 5 instances of the pe
    - colors will be fixed (blue, orange, yellow, green, blue)
    - all pendulums have a default size
 4. Create edit pendulum feature
-   - drag anchor to move anchor
    - drag centrer of pendulum to move pendulum location
    - drag edge of pendulm to change size
    - ( https://codepen.io/stanko/pen/eYLYzMJ )
