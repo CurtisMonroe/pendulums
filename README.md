@@ -42,6 +42,7 @@ From the `server` directory run `npm run dev` to start the 5 instances of the pe
 2. Get editor working in client..
 3. Create initial setup
    - 5 pendulums always (backend ports will be 5001-5005)
+   example canvas: https://github.com/ceddlyburge/react-figma-miro-canvas-part-1/blob/main/src/App.tsx 
    - colors will be fixed (blue, orange, yellow, green, blue)
    - all pendulums have a default size
 4. Create edit pendulum feature
@@ -49,6 +50,11 @@ From the `server` directory run `npm run dev` to start the 5 instances of the pe
    - drag edge of pendulm to change size
    - ( https://codepen.io/stanko/pen/eYLYzMJ )
    - ( https://dev.to/taowen/make-react-svg-component-draggable-2kc )
+   - ( example D3 selection: https://binyamin.medium.com/d3-select-selectall-data-enter-and-exit-f0e4f0d3e1d0 )
+   - ( example select by id https://d3js.org/d3-selection/selecting )
+   - const svg = d3.select("#chart");
+   - or  d3.select(document.body) select by node.
+   - ( example move pendulum: https://observablehq.com/@d3/circle-dragging-i?collection=@d3/d3-drag ) 
 6. Get simulation working in client
    - create [play] button to start simulation
    - create [stop/edit] button to reset simulation and enter edit mode
