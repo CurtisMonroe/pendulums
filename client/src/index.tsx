@@ -18,20 +18,3 @@ root.render(
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
 
-
-// import { useState } from " react";
-// App() {
-// function
-// const [number, setNumber]
-// return
-// <div>
-// = useState(Ø)
-// <span>You clicked {number} times
-// onClick={()
-// setNumber( (prev)
-// <button
-// Increase
-// </button>
-// </div>
-// export default App;
-// => prev +

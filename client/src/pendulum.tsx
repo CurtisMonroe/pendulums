@@ -1,5 +1,5 @@
 import { useRef, Component, useEffect, useState, PointerEvent } from 'react';
-import ReactDOM from 'react-dom/client';
+import { AppState, Mode } from './Simulation';
 
 interface DragElement {
     x: number;
@@ -11,8 +11,18 @@ interface DragElement {
     isResizing: boolean;
 }
 
-const Pendulum = (props: { index: number; anchor: number; color: string; cx: number; cy: number; r: number; }) => {
-    const { index, anchor, color, cx, cy, r } = props;
+interface PendulumProps {
+    index: number;
+    anchor: number;
+    color: string;
+    cx: number;
+    cy: number;
+    r: number;
+    simulationState: AppState;
+}
+
+const Pendulum = (props: PendulumProps) => {
+    const { index, anchor, color, cx, cy, r, simulationState } = props;
 
     const [element, setElement] = useState<DragElement>(
         {
@@ -26,6 +36,9 @@ const Pendulum = (props: { index: number; anchor: number; color: string; cx: num
         });
 
     function handleMovePendulumPointerDown(e: React.PointerEvent<SVGElement>) {
+        if (simulationState.mode !== Mode.stopped) {
+            return;
+        }
         const el = e.currentTarget;
         const bbox = e.currentTarget.getBoundingClientRect();
         const x = e.clientX - bbox.left;
@@ -56,6 +69,10 @@ const Pendulum = (props: { index: number; anchor: number; color: string; cx: num
     }
 
     function handleSizePendulumPointerDown(e: React.PointerEvent<SVGElement>) {
+        if (simulationState.mode !== Mode.stopped) {
+            return;
+        }
+        
         const el = e.currentTarget;
         const bbox = e.currentTarget.getBoundingClientRect();
         const x = e.clientX - bbox.left;
@@ -78,6 +95,12 @@ const Pendulum = (props: { index: number; anchor: number; color: string; cx: num
         setElement({ ...element, radius: radius });
     }
 
+    // useEffect(() => {
+    //     setStrArr(['a', 'b', 'c']);
+    
+    //     setObjArr([{name: 'A', age: 1}]);
+    //   }, []);
+
     return (
         <>
             <line x1={anchor} y1={1} x2={element.x} y2={element.y} style={{ stroke: color, strokeWidth: 4 }} />
@@ -86,6 +109,7 @@ const Pendulum = (props: { index: number; anchor: number; color: string; cx: num
                 cy={element.y}
                 r={element.radius}
                 fill={element.isResizing ? 'black' : color}
+                stroke={simulationState.mode !== Mode.stopped ? color : 'white'}
                 onPointerDown={(evt) => handleSizePendulumPointerDown(evt)}
                 onPointerMove={(evt) => handleSizePendulumPointerMove(evt)}
                 onPointerUp={(evt) => handlePointerUp(evt)}
