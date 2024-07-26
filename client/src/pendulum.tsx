@@ -41,6 +41,20 @@ interface PendulumProps {
     appState: AppState;
 }
 
+interface GetPendulumBackendResponse {
+    xAnchor: number,
+    yAnchor: number,
+    xInitial: number,
+    yInitial: number,
+    x: number,
+    y: number,
+    seconds: number,
+    status: string,
+    instance: number
+}
+
+const useInternalSimulation = false;
+
 const Pendulum = (props: PendulumProps) => {
     const { index, anchor, color, cx, cy, r, appState } = props;
 
@@ -140,6 +154,23 @@ const Pendulum = (props: PendulumProps) => {
     }
 
 
+    function updatePendulumInBackend(xAnchor: number, yAnchor: number, xInitial: number, yInitial: number, status: string) {
+        fetch(`http://localhost:${5000+index}/pendulum`, {
+            method: 'PUT',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                xAnchor: xAnchor,
+                yAnchor: yAnchor,
+                xInitial: xInitial,
+                yInitial: yInitial,
+                status: status
+            })
+        })
+    }
+       
 
     useEffect(() => {
         //let isMounted = true;
@@ -150,6 +181,8 @@ const Pendulum = (props: PendulumProps) => {
                     ...state,
                     status: SimulationStatus.paused
                 }));
+
+                updatePendulumInBackend(simulationState.xPivot, simulationState.yPivot, simulationState.xInitial, simulationState.yInitial, 'Paused');
             }
             else if (simulationState.status !== SimulationStatus.stopped && appState.mode === Mode.stopped) {    
                 setSimulationState((state) => ({
@@ -157,6 +190,8 @@ const Pendulum = (props: PendulumProps) => {
                     seconds: 0,
                     status: SimulationStatus.stopped
                 }));
+
+                updatePendulumInBackend(simulationState.xPivot, simulationState.yPivot, simulationState.xInitial, simulationState.yInitial, 'Stopped');
             }
             else if (simulationState.status === SimulationStatus.stopped && appState.mode === Mode.running) {
                 const currentTime = 0;
@@ -168,20 +203,7 @@ const Pendulum = (props: PendulumProps) => {
                     currentTime
                 );
 
-                fetch(`http://localhost:${5000+index}/pendulum`, {
-                    method: 'PUT',
-                    headers: {
-                      'Accept': 'application/json',
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        xAnchor: simulationState.xPivot,
-                        yAnchor: simulationState.yPivot,
-                        xInitial: pendulumState.xInitial,
-                        yInitial: pendulumState.yInitial,
-                        status: "Running"
-                    })
-                  })
+                updatePendulumInBackend(simulationState.xPivot, simulationState.yPivot, pendulumState.xInitial, pendulumState.yInitial, 'Running');
 
                 setSimulationState({
                     xPivot: anchor,
@@ -196,39 +218,57 @@ const Pendulum = (props: PendulumProps) => {
             else if (simulationState.status === SimulationStatus.running ||
                     (simulationState.status === SimulationStatus.paused && appState.mode === Mode.running)
             ) {
-                //   setState(state => ({ data: state.data, error: false, loading: true }))
-                //   fetch(url)
-                //     .then(data => data.json())
-                //     .then(obj =>
-                //       Object.keys(obj).map(key => {
-                //         let newData = obj[key]
-                //         newData.key = key
-                //         return newData
-                //       })
-                //    )
-                //    .then(newData => setState({ data: newData, error: false, loading: false }))
-                //    .catch(function(error) {
-                //       console.log(error)
-                //       setState({ data: null, error: true, loading: false })
-                //    })
+                if (simulationState.status === SimulationStatus.paused) {
+                    // start the simulation running if it isn't already
+                    updatePendulumInBackend(simulationState.xPivot, simulationState.yPivot, simulationState.xInitial, simulationState.yInitial, 'Running');
+                }
 
+                if (useInternalSimulation) {
+                    const currentTime = simulationState.seconds + millisecondsPerFrame/1000;
+                    const {x, y} = getPendulumLocationAtGivenTime(
+                        simulationState.xPivot,
+                        simulationState.yPivot,
+                        simulationState.xInitial,
+                        simulationState.yInitial,
+                        currentTime
+                    );
+                    setSimulationState((state) => ({
+                        ...state,
+                        x: x,
+                        y: y,
+                        seconds: currentTime,
+                        status: SimulationStatus.running
+                    }));
+                } else {
+                    // Server sample response:
+                    // {
+                    //     "xAnchor": 166.66666666666666,
+                    //     "yAnchor": 0,
+                    //     "xInitial": 166.66666666666666,
+                    //     "yInitial": 400,
+                    //     "x": 166.66666666666666,
+                    //     "y": 400,
+                    //     "seconds": 0,
+                    //     "status": "Stopped",
+                    //     "neighborPort": 5000,
+                    //     "instance": 1
+                    // }
 
-                
-                const currentTime = simulationState.seconds + millisecondsPerFrame/1000;
-                const {x, y} = getPendulumLocationAtGivenTime(
-                    simulationState.xPivot,
-                    simulationState.yPivot,
-                    simulationState.xInitial,
-                    simulationState.yInitial,
-                    currentTime
-                );
-                setSimulationState((state) => ({
-                    ...state,
-                    x: x,
-                    y: y,
-                    seconds: currentTime,
-                    status: SimulationStatus.running
-                }));
+                    fetch(`http://localhost:${5000+index}/pendulum`)
+                    .then(response => response.json())
+                    .then((data: GetPendulumBackendResponse) => 
+                        setSimulationState((state) => ({
+                            ...state,
+                            x: data.x,
+                            y: data.y,
+                            seconds: data.seconds,
+                            status: SimulationStatus.running})
+                        ))
+                   .catch(function(error) {
+                      console.log(error)
+                   })
+                }
+
             }    
         }, millisecondsPerFrame)
       
