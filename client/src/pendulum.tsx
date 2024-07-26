@@ -48,6 +48,7 @@ interface GetPendulumBackendResponse {
     yInitial: number,
     x: number,
     y: number,
+    radius: number,
     seconds: number,
     status: string,
     instance: number
@@ -154,7 +155,7 @@ const Pendulum = (props: PendulumProps) => {
     }
 
 
-    function updatePendulumInBackend(xAnchor: number, yAnchor: number, xInitial: number, yInitial: number, status: string) {
+    function updatePendulumInBackend(xAnchor: number, yAnchor: number, xInitial: number, yInitial: number, radius: number, status: string) {
         fetch(`http://localhost:${5000+index}/pendulum`, {
             method: 'PUT',
             headers: {
@@ -166,6 +167,7 @@ const Pendulum = (props: PendulumProps) => {
                 yAnchor: yAnchor,
                 xInitial: xInitial,
                 yInitial: yInitial,
+                radius: radius,
                 status: status
             })
         })
@@ -182,7 +184,7 @@ const Pendulum = (props: PendulumProps) => {
                     status: SimulationStatus.paused
                 }));
 
-                updatePendulumInBackend(simulationState.xPivot, simulationState.yPivot, simulationState.xInitial, simulationState.yInitial, 'Paused');
+                updatePendulumInBackend(simulationState.xPivot, simulationState.yPivot, simulationState.xInitial, simulationState.yInitial, r, 'Paused');
             }
             else if (simulationState.status !== SimulationStatus.stopped && appState.mode === Mode.stopped) {    
                 setSimulationState((state) => ({
@@ -191,7 +193,7 @@ const Pendulum = (props: PendulumProps) => {
                     status: SimulationStatus.stopped
                 }));
 
-                updatePendulumInBackend(simulationState.xPivot, simulationState.yPivot, simulationState.xInitial, simulationState.yInitial, 'Stopped');
+                updatePendulumInBackend(simulationState.xPivot, simulationState.yPivot, simulationState.xInitial, simulationState.yInitial, r, 'Stopped');
             }
             else if (simulationState.status === SimulationStatus.stopped && appState.mode === Mode.running) {
                 const currentTime = 0;
@@ -203,7 +205,7 @@ const Pendulum = (props: PendulumProps) => {
                     currentTime
                 );
 
-                updatePendulumInBackend(simulationState.xPivot, simulationState.yPivot, pendulumState.xInitial, pendulumState.yInitial, 'Running');
+                updatePendulumInBackend(simulationState.xPivot, simulationState.yPivot, pendulumState.xInitial, pendulumState.yInitial, r, 'Running');
 
                 setSimulationState({
                     xPivot: anchor,
@@ -220,7 +222,7 @@ const Pendulum = (props: PendulumProps) => {
             ) {
                 if (simulationState.status === SimulationStatus.paused) {
                     // start the simulation running if it isn't already
-                    updatePendulumInBackend(simulationState.xPivot, simulationState.yPivot, simulationState.xInitial, simulationState.yInitial, 'Running');
+                    updatePendulumInBackend(simulationState.xPivot, simulationState.yPivot, simulationState.xInitial, simulationState.yInitial, r, 'Running');
                 }
 
                 if (useInternalSimulation) {
@@ -250,6 +252,7 @@ const Pendulum = (props: PendulumProps) => {
                     //     "y": 400,
                     //     "seconds": 0,
                     //     "status": "Stopped",
+                    //     "radius": 20,
                     //     "neighborPort": 5000,
                     //     "instance": 1
                     // }

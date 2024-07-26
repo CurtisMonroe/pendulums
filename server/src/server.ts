@@ -22,6 +22,7 @@ interface Pendulum {
   yInitial: number;
   x: number;
   y: number;
+  radius: number;
   seconds: number;
   status: SimulationStatus;
   neighborPort: number;
@@ -46,6 +47,7 @@ let pendulum:Pendulum = {
   yInitial: 0,
   x: 0,
   y: 0,
+  radius: 10,
   seconds: 0,
   status: SimulationStatus.stopped,
   neighborPort: 5000,
@@ -107,6 +109,7 @@ app.put("/pendulum", (req: Request, res: Response) => {
     yAnchor: req.body.yAnchor || 0,
     xInitial: req.body.xInitial || 0,
     yInitial: req.body.yInitial || 0,
+    radius: req.body.radius || 10,
     status: newStatus
   };
 
