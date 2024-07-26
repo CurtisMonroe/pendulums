@@ -1,7 +1,7 @@
 import { useRef, Component, useEffect, useState, PointerEvent } from 'react';
-import { AppState, Mode } from './Simulation';
+import { AppState, getPendulumLocationAtGivenTime, Mode } from './Simulation';
 
-interface DragElement {
+interface PendulumState {
     xInitial: number;
     yInitial: number;
     radius: number;
@@ -13,6 +13,24 @@ interface DragElement {
     isResizing: boolean;
 }
 
+enum SimulationStatus {
+    stopped = 'stopped',
+    running = 'Running',
+    paused = 'Paused',
+    halted = 'Halted'
+}
+
+interface SimulationState {
+    xPivot: number;
+    yPivot: number;
+    xInitial: number;
+    yInitial: number;
+    x: number;
+    y: number;
+    seconds: number;
+    status: SimulationStatus;
+}
+
 interface PendulumProps {
     index: number;
     anchor: number;
@@ -20,13 +38,13 @@ interface PendulumProps {
     cx: number;
     cy: number;
     r: number;
-    simulationState: AppState;
+    appState: AppState;
 }
 
 const Pendulum = (props: PendulumProps) => {
-    const { index, anchor, color, cx, cy, r, simulationState } = props;
+    const { index, anchor, color, cx, cy, r, appState } = props;
 
-    const [element, setElement] = useState<DragElement>(
+    const [pendulumState, setPendulumState] = useState<PendulumState>(
         {
             xInitial: cx,
             yInitial: cy,
@@ -38,9 +56,22 @@ const Pendulum = (props: PendulumProps) => {
             isRepositioning: false,
             isResizing: false,
         });
+    
+    const [simulationState, setSimulationState] = useState<SimulationState>(
+        {
+            xPivot: anchor,
+            yPivot: 0,
+            xInitial: cx,
+            yInitial: cy,
+            x: cx,
+            y: cy,
+            seconds: 0,
+            status: SimulationStatus.stopped 
+        }
+    );
 
     function handleMovePendulumPointerDown(e: React.PointerEvent<SVGElement>) {
-        if (simulationState.mode !== Mode.stopped) {
+        if (appState.mode !== Mode.stopped) {
             return;
         }
         const el = e.currentTarget;
@@ -49,8 +80,8 @@ const Pendulum = (props: PendulumProps) => {
         const y = e.clientY - bbox.top;
         el.setPointerCapture(e.pointerId);
 
-        setElement({ 
-            ...element, 
+        setPendulumState({ 
+            ...pendulumState, 
             xOffset: x, 
             yOffset: y,
             isRepositioning: true 
@@ -58,7 +89,7 @@ const Pendulum = (props: PendulumProps) => {
     }
 
     function handleMovePendulumPointerMove(e: React.PointerEvent<SVGElement>) {
-        if (element.isRepositioning !== true) {
+        if (pendulumState.isRepositioning !== true) {
             return;
         }
 
@@ -66,11 +97,11 @@ const Pendulum = (props: PendulumProps) => {
         const x = e.clientX - bbox.left;
         const y = e.clientY - bbox.top;
 
-        const xInit = element.xInitial - (element.xOffset - x);
-        const yInit = element.yInitial - (element.yOffset - y);
+        const xInit = pendulumState.xInitial - (pendulumState.xOffset - x);
+        const yInit = pendulumState.yInitial - (pendulumState.yOffset - y);
 
-        setElement({
-            ...element,
+        setPendulumState({
+            ...pendulumState,
             xInitial: xInit,
             yInitial: yInit,
             xSimulated: xInit,
@@ -79,11 +110,11 @@ const Pendulum = (props: PendulumProps) => {
     }
 
     function handlePointerUp(e: React.PointerEvent<SVGElement>) {
-        setElement({ ...element, isRepositioning: false, isResizing: false });
+        setPendulumState({ ...pendulumState, isRepositioning: false, isResizing: false });
     }
 
     function handleSizePendulumPointerDown(e: React.PointerEvent<SVGElement>) {
-        if (simulationState.mode !== Mode.stopped) {
+        if (appState.mode !== Mode.stopped) {
             return;
         }
 
@@ -93,30 +124,84 @@ const Pendulum = (props: PendulumProps) => {
         const y = e.clientY - bbox.top;
         el.setPointerCapture(e.pointerId);
 
-        setElement({ ...element, xOffset: x, yOffset: y, isResizing: true });
+        setPendulumState({ ...pendulumState, xOffset: x, yOffset: y, isResizing: true });
     }
 
     function handleSizePendulumPointerMove(e: React.PointerEvent<SVGElement>) {
-        if (element.isResizing !== true) {
+        if (pendulumState.isResizing !== true) {
             return;
         }
-
         const bbox = e.currentTarget.getBoundingClientRect();
         const x = e.clientX - (bbox.left + (bbox.width)/2);
         const y = e.clientY - (bbox.top + (bbox.height)/2);
         const radius = Math.sqrt(x*x + y*y);
 
-        setElement({ ...element, radius: radius });
+        setPendulumState({ ...pendulumState, radius: radius });
     }
 
-    // useEffect(() => {
-    //     setStrArr(['a', 'b', 'c']);
-    
-    //     setObjArr([{name: 'A', age: 1}]);
-    //   }, []);
 
-    const x = simulationState.mode === Mode.stopped ? element.xInitial : element.xSimulated;
-    const y = simulationState.mode === Mode.stopped ? element.yInitial : element.ySimulated;
+
+    useEffect(() => {
+        //let isMounted = true;
+        const millisecondsPerFrame = 100;
+        const intervalId = setInterval(() => {  //assign interval to a variable to clear it.
+        //   setState(state => ({ data: state.data, error: false, loading: true }))
+        //   fetch(url)
+        //     .then(data => data.json())
+        //     .then(obj =>
+        //       Object.keys(obj).map(key => {
+        //         let newData = obj[key]
+        //         newData.key = key
+        //         return newData
+        //       })
+        //    )
+        //    .then(newData => setState({ data: newData, error: false, loading: false }))
+        //    .catch(function(error) {
+        //       console.log(error)
+        //       setState({ data: null, error: true, loading: false })
+        //    })
+            //console.log(`seconds:${simulationState.seconds} SimulationStatus:${simulationState.status}  appState.mode:${appState.mode}`);
+            if (simulationState.status === SimulationStatus.stopped && appState.mode === Mode.running) {
+                setSimulationState({
+                    xPivot: anchor,
+                    yPivot: 0,
+                    xInitial: pendulumState.xInitial,
+                    yInitial: pendulumState.yInitial,
+                    x: pendulumState.xInitial,
+                    y: pendulumState.yInitial,
+                    seconds: 0,
+                    status: SimulationStatus.running });
+                //console.log("xxxxxx");
+            }
+            else if (simulationState.status === SimulationStatus.running) {
+                //console.log("yyyyy");
+                const currentTime = simulationState.seconds + millisecondsPerFrame/1000;
+                const {x, y} = getPendulumLocationAtGivenTime(
+                    simulationState.xPivot,
+                    simulationState.yPivot,
+                    simulationState.xInitial,
+                    simulationState.yInitial,
+                    currentTime
+                );
+                setSimulationState((state) => ({
+                    ...state,
+                    x: x,
+                    y: y,
+                    seconds: currentTime,
+                    status: SimulationStatus.running
+                }));
+            }    
+        }, millisecondsPerFrame)
+      
+        return () => {
+            clearInterval(intervalId); //This is important
+            //isMounted = false // Let's us know the component is no longer mounted.
+        } 
+       
+      }, [simulationState, appState])
+
+    const x = appState.mode === Mode.stopped ? pendulumState.xInitial : simulationState.x;
+    const y = appState.mode === Mode.stopped ? pendulumState.yInitial : simulationState.y;
 
     return (
         <>
@@ -124,9 +209,9 @@ const Pendulum = (props: PendulumProps) => {
             <circle id={`pendulum-${index}`}
                 cx={x}
                 cy={y}
-                r={element.radius}
-                fill={element.isResizing ? 'black' : color}
-                stroke={simulationState.mode !== Mode.stopped ? color : 'white'}
+                r={pendulumState.radius}
+                fill={pendulumState.isResizing ? 'black' : color}
+                stroke={appState.mode !== Mode.stopped ? color : 'white'}
                 onPointerDown={(evt) => handleSizePendulumPointerDown(evt)}
                 onPointerMove={(evt) => handleSizePendulumPointerMove(evt)}
                 onPointerUp={(evt) => handlePointerUp(evt)}
@@ -134,7 +219,7 @@ const Pendulum = (props: PendulumProps) => {
             <circle id={`pendulum-core-${index}`}
                 cx={x}
                 cy={y}
-                r={element.radius-10}
+                r={pendulumState.radius-10}
                 fill={color}
                 onPointerDown={(evt) => handleMovePendulumPointerDown(evt)}
                 onPointerMove={(evt) => handleMovePendulumPointerMove(evt)}
