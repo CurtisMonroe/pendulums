@@ -14,7 +14,7 @@ interface PendulumState {
 }
 
 enum SimulationStatus {
-    stopped = 'stopped',
+    stopped = 'Stopped',
     running = 'Running',
     paused = 'Paused',
     halted = 'Halted'
@@ -145,36 +145,75 @@ const Pendulum = (props: PendulumProps) => {
         //let isMounted = true;
         const millisecondsPerFrame = 100;
         const intervalId = setInterval(() => {  //assign interval to a variable to clear it.
-        //   setState(state => ({ data: state.data, error: false, loading: true }))
-        //   fetch(url)
-        //     .then(data => data.json())
-        //     .then(obj =>
-        //       Object.keys(obj).map(key => {
-        //         let newData = obj[key]
-        //         newData.key = key
-        //         return newData
-        //       })
-        //    )
-        //    .then(newData => setState({ data: newData, error: false, loading: false }))
-        //    .catch(function(error) {
-        //       console.log(error)
-        //       setState({ data: null, error: true, loading: false })
-        //    })
-            //console.log(`seconds:${simulationState.seconds} SimulationStatus:${simulationState.status}  appState.mode:${appState.mode}`);
-            if (simulationState.status === SimulationStatus.stopped && appState.mode === Mode.running) {
+            if (simulationState.status === SimulationStatus.running && appState.mode === Mode.paused) {    
+                setSimulationState((state) => ({
+                    ...state,
+                    status: SimulationStatus.paused
+                }));
+            }
+            else if (simulationState.status !== SimulationStatus.stopped && appState.mode === Mode.stopped) {    
+                setSimulationState((state) => ({
+                    ...state,
+                    seconds: 0,
+                    status: SimulationStatus.stopped
+                }));
+            }
+            else if (simulationState.status === SimulationStatus.stopped && appState.mode === Mode.running) {
+                const currentTime = 0;
+                const {x, y} = getPendulumLocationAtGivenTime(
+                    simulationState.xPivot,
+                    simulationState.yPivot,
+                    pendulumState.xInitial,
+                    pendulumState.yInitial,
+                    currentTime
+                );
+
+                fetch(`http://localhost:${5000+index}/pendulum`, {
+                    method: 'PUT',
+                    headers: {
+                      'Accept': 'application/json',
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        xAnchor: simulationState.xPivot,
+                        yAnchor: simulationState.yPivot,
+                        xInitial: pendulumState.xInitial,
+                        yInitial: pendulumState.yInitial,
+                        status: "Running"
+                    })
+                  })
+
                 setSimulationState({
                     xPivot: anchor,
                     yPivot: 0,
                     xInitial: pendulumState.xInitial,
                     yInitial: pendulumState.yInitial,
-                    x: pendulumState.xInitial,
-                    y: pendulumState.yInitial,
-                    seconds: 0,
+                    x: x,
+                    y: y,
+                    seconds: currentTime,
                     status: SimulationStatus.running });
-                //console.log("xxxxxx");
             }
-            else if (simulationState.status === SimulationStatus.running) {
-                //console.log("yyyyy");
+            else if (simulationState.status === SimulationStatus.running ||
+                    (simulationState.status === SimulationStatus.paused && appState.mode === Mode.running)
+            ) {
+                //   setState(state => ({ data: state.data, error: false, loading: true }))
+                //   fetch(url)
+                //     .then(data => data.json())
+                //     .then(obj =>
+                //       Object.keys(obj).map(key => {
+                //         let newData = obj[key]
+                //         newData.key = key
+                //         return newData
+                //       })
+                //    )
+                //    .then(newData => setState({ data: newData, error: false, loading: false }))
+                //    .catch(function(error) {
+                //       console.log(error)
+                //       setState({ data: null, error: true, loading: false })
+                //    })
+
+
+                
                 const currentTime = simulationState.seconds + millisecondsPerFrame/1000;
                 const {x, y} = getPendulumLocationAtGivenTime(
                     simulationState.xPivot,
@@ -200,8 +239,9 @@ const Pendulum = (props: PendulumProps) => {
        
       }, [simulationState, appState])
 
-    const x = appState.mode === Mode.stopped ? pendulumState.xInitial : simulationState.x;
-    const y = appState.mode === Mode.stopped ? pendulumState.yInitial : simulationState.y;
+    const useSimulation = appState.mode !== Mode.stopped && simulationState.status !== SimulationStatus.stopped;
+    const x = useSimulation ? simulationState.x : pendulumState.xInitial;
+    const y = useSimulation ? simulationState.y : pendulumState.yInitial;
 
     return (
         <>
