@@ -1,6 +1,8 @@
 # pendulums
 Simple pendulum simulation
 
+![screenshot](./assets/PendulumSimulationScreenShot.png)
+
 ## Take Home Exercise
 In node.js, implement a "simple pendulum" in 1 dimension. A REST interface will allow to set up an initial
 angular offset, a mass, a string length (or other settings of your choice). It will also allow you to read the
@@ -25,44 +27,45 @@ restart moving, jumping back to their original position.
 Document briefly the resulting REST interface.
 
 ## To Run
-From the `server` directory run `npm run dev` to start the 5 instances of the pendulum backend servers.
+Run both the React frontend and Node.js backend in seperate terminals.
 
+Run the backend
+1. `cd server`
+2. `npm run dev` ( this will start 5 instance, one for each pendulum )
 
-## Plan
+Run the frontend
+1. `cd client`
+2. `npm run start` 
+
+Open browser to `http://localhost:3000/` to see animation.
+
+## Usage
+
+- Drag pendulums from the center to move
+- Drag pendulums from the edges to size
+- Pendulum editing is only allowed when the simulation is `stopped` (no editing a paused simulation)
+
+## Backend REST Endpoints
+
+The REST API for the Pendulum Simulation Backend is available here [Pendulum API Docs](https://documenter.getpostman.com/view/3313257/2sA3kYjLPq)
+
+## Implementation Plan
 
 ### Day 1
 1. Setup React client and Node.js server folders and projects
- https://www.youtube.com/watch?v=w3vs4a03y3I&ab_channel=ArpanNeupane
- npx create-react-app my-app --template typescript
- https://create-react-app.dev/docs/adding-typescript/  
- https://blog.logrocket.com/how-to-set-up-node-typescript-express/
- https://stackoverflow.com/questions/4351521/how-do-i-pass-command-line-arguments-to-a-node-js-program-and-receive-them 
- https://www.npmjs.com/package/ts-command-line-args 
-
+   - npx create-react-app my-app --template typescript
 2. Get editor working in client..
 3. Create initial setup
    - 5 pendulums always (backend ports will be 5001-5005)
-   example canvas: https://github.com/ceddlyburge/react-figma-miro-canvas-part-1/blob/main/src/App.tsx 
    - colors will be fixed (blue, orange, yellow, green, blue)
    - all pendulums have a default size
 4. Create edit pendulum feature
    - drag centrer of pendulum to move pendulum location
    - drag edge of pendulm to change size
-   - ( https://codepen.io/stanko/pen/eYLYzMJ )
-   - ( https://dev.to/taowen/make-react-svg-component-draggable-2kc )
-   - ( example D3 selection: https://binyamin.medium.com/d3-select-selectall-data-enter-and-exit-f0e4f0d3e1d0 )
-   - ( example select by id https://d3js.org/d3-selection/selecting )
-   - const svg = d3.select("#chart");
-   - or  d3.select(document.body) select by node.
-   - ( example move pendulum: https://observablehq.com/@d3/circle-dragging-i?collection=@d3/d3-drag ) 
 6. Get simulation working in client
    - create [play] button to start simulation
    - create [stop/edit] button to reset simulation and enter edit mode
    - create [pause] button to pause simulation
-   - pendulum physics examples
-    ( https://codepen.io/Destructor1702/pen/YYwopY )
-    ( https://codepen.io/TC5550/pen/JjdOMNp )
-
 
 ### Day 2
 - create 5 pendulum servers on ports 5001-5005
