@@ -2,6 +2,8 @@ import express, { Express, Request, Response } from "express";
 import dotenv from "dotenv";
 import { parse } from 'ts-command-line-args';
 import { getPendulumLocationAtGivenTime } from "./simulation";
+import mqtt from "mqtt";
+import { setTimeout } from "timers/promises";
 
 interface IArguments{
   port: number;
@@ -12,7 +14,8 @@ enum SimulationStatus {
   stopped = 'Stopped',
   running = 'Running',
   paused = 'Paused',
-  halted = 'Halted'
+  halted = 'Halted',
+  restarting = 'Restarting'
 }
 
 interface Pendulum {
@@ -25,6 +28,8 @@ interface Pendulum {
   radius: number;
   seconds: number;
   status: SimulationStatus;
+  haltStartTime: number;
+  haltRestartsReceived: number;
   instance: number;
 }
 
@@ -51,16 +56,20 @@ let pendulum:Pendulum = {
   radius: 10,
   seconds: 0,
   status: SimulationStatus.stopped,
+  haltStartTime: 0,
+  haltRestartsReceived: 0,
   instance: args.instance
 } 
 
 
 let intervalId:NodeJS.Timeout;
+let haltWaitIntervalId:NodeJS.Timeout;
 
 function getStatus(status: string) {
   if (status == 'Running') return SimulationStatus.running;
   if (status == 'Halted') return SimulationStatus.halted;
   if (status == 'Paused') return SimulationStatus.paused;
+  if (status == 'Restarting') return SimulationStatus.restarting;
   return SimulationStatus.stopped;
 }
 
@@ -74,26 +83,70 @@ function pendulumDistance(x1:number, y1:number, r1:number, x2:number, y2:number,
   return Math.sqrt(square(x1-x2) + square(y1-y2))-(r1+r2);
 }
 
-let isHalted = false;
+const mqttClient = mqtt.connect("mqtt://test.mosquitto.org");
+const mqttHaltTopic = 'CurtisM-Pendulum-Halt'
 
-function doSafetyHalt() {
-  if(isHalted) {
+mqttClient.on("connect", () => {
+  mqttClient.subscribe(mqttHaltTopic, (err) => {
+    if (err) {
+      console.log(`ERROR: Fails to subscribe to mqtt topic: "${mqttHaltTopic}"`);
+    }
+  });
+});
+
+mqttClient.on("message", (topic, message) => {
+  // message is Buffer
+  const msg = message.toString();
+  console.log(`Instance ${args.instance}| Received mqtt message:"${msg}"`);
+  //mqttClient.end();
+
+  if (msg.startsWith('HALT')) {
+    if(pendulum.status === SimulationStatus.halted) {
+      return;
+    }
+
+    pendulum.status = SimulationStatus.halted;
+    pendulum.haltStartTime = pendulum.seconds;
+    pendulum.haltRestartsReceived = 0;
+  }
+
+  if (msg.startsWith('RESTART')) {
+    if(pendulum.status !== SimulationStatus.halted && pendulum.status !== SimulationStatus.restarting) {
+      return; // nothing to do, we are not in Halted nor Restarting mode.
+    }
+
+    pendulum.haltRestartsReceived++;
+
+    // listen for all 4 restart messages from neighbors
+    if(pendulum.haltRestartsReceived >= 4) {
+      // restart simulation from initial state
+      console.log(`Instance ${args.instance}| Restarting after receiving ${pendulum.haltRestartsReceived} RESTART messages`);
+      pendulum.x = pendulum.xInitial;
+      pendulum.y = pendulum.yInitial;
+      pendulum.seconds = 0;
+      pendulum.haltRestartsReceived = 0;
+      pendulum.haltStartTime = 0;
+      pendulum.status = SimulationStatus.running;
+    }
+  }
+
+});
+
+function sendHaltBroadcast(instance: number, neighbor: number, distance: number) {
+  mqttClient.publish(mqttHaltTopic, `HALT - Pendulums ${instance} and ${neighbor} to close. (distance: ${distance})`);
+}
+
+function doSafetyHalt(instance: number, neighbor: number, distance: number) {
+  if(pendulum.status === SimulationStatus.halted) {
     return;
   }
 
-  isHalted = true;
   pendulum.status = SimulationStatus.halted;
-  clearInterval(intervalId);
+
+  console.log(`SAFETY HALT trigged by instance ${instance}. Distance to neighbor ${neighbor} is ${distance}.`);
 
   // send halt message to other instances including this one
-
-  // wait for 5 seconds
-
-  // send a RESTART message to the same channel
-
-  // listen for all 5 restart message
-
-  // restart simulation from initial state
+  sendHaltBroadcast(instance, neighbor, distance);
 }
 
 function testForCollisions(x: number, y: number, radius: number, instance: number) {
@@ -103,8 +156,7 @@ function testForCollisions(x: number, y: number, radius: number, instance: numbe
     .then((neighbor: Pendulum) => {
       const neighborDistance = pendulumDistance(x, y, radius, neighbor.x, neighbor.y, neighbor.radius);
       if(neighborDistance < safetyDistance) {
-        console.log(`SAFETY HALT trigged by instance ${instance}. Distance to neighbor ${neighbor.instance} is ${neighborDistance}.`);
-        doSafetyHalt();
+        doSafetyHalt(instance, neighbor.instance, neighborDistance);
       }
     })
     .catch(function(error) {
@@ -115,20 +167,32 @@ function testForCollisions(x: number, y: number, radius: number, instance: numbe
 
 function doSimulationStep() {
   const currentTime = pendulum.seconds + millisecondsPerFrame/1000;
-  const {x, y} = getPendulumLocationAtGivenTime(
-    pendulum.xAnchor,
-    pendulum.yAnchor,
-    pendulum.xInitial,
-    pendulum.yInitial,
-    currentTime
-  );
-  pendulum.x = x;
-  pendulum.y = y;
-  pendulum.seconds = currentTime;
-  //console.log(JSON.stringify(pendulum));
-  //console.log(`x:${x} y:${y}`);
+  if(pendulum.status === SimulationStatus.running) {
+    const {x, y} = getPendulumLocationAtGivenTime(
+      pendulum.xAnchor,
+      pendulum.yAnchor,
+      pendulum.xInitial,
+      pendulum.yInitial,
+      currentTime
+    );
+    pendulum.x = x;
+    pendulum.y = y;
+    pendulum.seconds = currentTime;
 
-  testForCollisions(x, y, pendulum.radius, pendulum.instance);
+    //console.log(JSON.stringify(pendulum));
+    //console.log(`x:${x} y:${y}`);
+  
+    testForCollisions(x, y, pendulum.radius, pendulum.instance);
+  } else if(pendulum.status === SimulationStatus.halted) {
+    if(currentTime - pendulum.haltStartTime > 5) {
+      console.log(`Instance ${args.instance}| Sending RESTART event`); 
+      mqttClient.publish(mqttHaltTopic, `RESTART - restarting pendulum ${args.instance}`);
+      pendulum.status = SimulationStatus.restarting;
+    }
+    pendulum.seconds = currentTime;
+  }
+
+
 
 }
 
@@ -146,8 +210,7 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.get("/pendulum", (req: Request, res: Response) => {
-  console.log(`GET /pendulum called - Response:${JSON.stringify(pendulum)}`)
-  console.log(JSON.stringify(pendulum));
+  //console.log(`GET /pendulum called - Response:${JSON.stringify(pendulum)}`)
   res.json(pendulum);
 });
 
@@ -175,8 +238,12 @@ app.put("/pendulum", (req: Request, res: Response) => {
     if(newStatus == SimulationStatus.running) {
       intervalId = setInterval(doSimulationStep, millisecondsPerFrame);
     }
-    if(oldStatus == SimulationStatus.running && intervalId){
-      clearInterval(intervalId);
+    if(newStatus == SimulationStatus.stopped || newStatus == SimulationStatus.paused){
+      if(intervalId){
+        clearInterval(intervalId);
+      }
+      pendulum.haltRestartsReceived = 0;
+      pendulum.haltStartTime = 0;
     }
   }
   res.json(pendulum);

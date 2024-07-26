@@ -264,8 +264,7 @@ const Pendulum = (props: PendulumProps) => {
                             ...state,
                             x: data.x,
                             y: data.y,
-                            seconds: data.seconds,
-                            status: SimulationStatus.running})
+                            seconds: data.seconds})
                         ))
                    .catch(function(error) {
                       console.log(error)
